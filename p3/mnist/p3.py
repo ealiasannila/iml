@@ -1,3 +1,4 @@
+from __future__ import division
 import numpy as np
 import mnist_load_show as mnist
 import random as random
@@ -57,6 +58,8 @@ def doKNN(k):
 			pred = 0
 		cfm[teY[a]][pred] += 1
 	print cfm
+	print "ER: ", 1 - np.sum(np.diagonal(cfm))/np.sum(cfm)
+	
 	return cfm
 
 
@@ -74,6 +77,8 @@ def verify(n, xs, ys):
 		print ys[i]
 		mnist.visualize(xs[i])
 
+#verify(5, teX, teY)
+
 
 def simple_EC_classifier():
 	"""
@@ -83,20 +88,27 @@ def simple_EC_classifier():
 
 	cfm = np.zeros((10,10), dtype = int)
 	digitn = [0]*10
+	avgImg = np.zeros((10,28,28))
+	
 	trd = np.zeros((10,28*28), dtype = int)
 	for	i in xrange(0,len(trX)):
 		digit = trY[i]
 		digitn[digit] += 1
-		img = trX[i].flatten()
-		trd[digit] = np.sum([trd[digit], img], axis = 0)
+		avgImg[digit] = np.sum([avgImg[digit], trX[i]], axis = 0)
 	for	d in xrange(0, len(trd)):
-		trd[d] = np.divide(trd[d], digitn[d])
-		
-	dm = cdist(teXf, trd,'euclidean')
+		avgImg[d] = np.divide(avgImg[d], digitn[d])
+	avgFlat = np.zeros((10,28*28), dtype = int)
+	for i in xrange(0, len(avgImg)):
+		avgFlat[i] = avgImg[i].flatten()
+	dm = cdist(teXf, avgFlat,'euclidean')
 	for	a in range(0,len(dm)):
 		pred = np.argmin(dm[a])
+	
 		cfm[teY[a]][pred] += 1	
+	#mnist.visualize(avgImg[0:10])
 	print cfm
+	print "ER: ", 1 - np.sum(np.diagonal(cfm))/np.sum(cfm)
+	print ""
 	return cfm
 
 
