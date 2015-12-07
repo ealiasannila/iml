@@ -4,108 +4,99 @@ import matplotlib.pyplot as plt
 from scipy.spatial.distance import cdist
 
 
-errors = 0
-n = 10000
 
-for i in xrange(0,n):
-	choice = np.random.choice([0, 1])
-	if choice == 0:
-		x1 = np.random.normal(0, 1)
-		x2 = np.random.normal(0, 1)		
-		if(x1**2 + x2**2)>2.957:
-			errors +=1
-	else:
-		x1 = np.random.normal(0, 16)
-		x2 = np.random.normal(0, 16)
-		if(x1**2 + x2**2)<2.957:
-			errors +=1
-
-errorate =  errors/n
-
-
+boundary = (32*np.log(256))/15
 
 def drawPoints(n):
 
-	y0 = np.ndarray((0,2))
-	y1 = np.ndarray((0,2))
+	ys = np.array([], dtype=int)
+	xs = np.ndarray((0,2))
 	for i in xrange(0,n):
 		choice = np.random.choice([0, 1])
+		x1 = 99999
+		x2 = 99999
 		if choice == 0:
 			x1 = np.random.normal(0, 1)
 			x2 = np.random.normal(0, 1)
-			y0 = np.append(y0, [[x1,x2]],axis = 0)
-		
+			ys = np.append(ys,0)
 		else:
 			x1 = np.random.normal(0, 16)
 			x2 = np.random.normal(0, 16)
-			y1 = np.append(y1, [[x1,x2]], axis =0)
-	return [y0, y1]
+			ys = np.append(ys,1)
+		xs = np.append(xs, [[x1,x2]],axis = 0)
+	return [ys, xs]
 
 
-def doKNN(k, testset):
+def doKNN(k, trxs, trys, texs, teys):
 	mistakes = 0
-
 	
-	tey0d = np.argpartition(cdist(testset[0], trainCombined,'euclidean'),k-1,axis=1)
-	tey1d = np.argpartition(cdist(testset[1], trainCombined,'euclidean'),k-1,axis=1)
-	
-	for j in xrange(0, len(tey0d)):
-		right = 0
-		wrong = 0
+	dist = cdist(texs, trxs, 'euclidean')
+	knn = np.argpartition(cdist(texs, trxs, 'euclidean'), k-1, axis=1)
+	for r in xrange(0, len(knn)):
+		row = knn[r]
+		pred = [0,0]
 		for i in xrange(0, k):
-			if tey0d[j][i]<len(train[0]):
-				right += 1
-			else:
-				wrong += 1
-		
-		if(wrong>=right):
-			mistakes+=1
-			
-	for j in xrange(0, len(tey1d)):
-		right = 0
-		wrong = 0
-		for i in xrange(0, k):
-			if tey1d[j][i]>=len(train[0]):
-				right += 1
-			else:
-				wrong += 1
-		
-		if(wrong>=right):
-			mistakes+=1
-			
-	return mistakes/len(trainCombined)
+			pred[trys[row[i]]] += 1
+		if teys[r]!=np.argmax(pred):
+			mistakes +=1
+	return mistakes/len(teys)
+
+
+def decbound(x):
+	if x[0]**2+x[1]**2 <boundary: #defined in begining of file as result of problem 3
+		return 0
+	return 1
 	
+def bayes(texs, teys):
+	mistakes= 0
+	for i in xrange(0,len(texs)):
+		if(teys[i]!=decbound(texs[i])):
+			mistakes +=1
+	return mistakes/len(teys)
+		
+
+def getErrorates(test, train, kvals):	
+	errorates = np.array([])
+	for k in kvals:
+		errorates = np.append(errorates,doKNN(k, train[1], train[0], test[1], test[0]))
+	return errorates
+
+def plotData(data):
+
+	x1s = np.ndarray((0,2))
+	x0s = np.ndarray((0,2))
+
+	for i in xrange(0, len(data[0])):
+		if data[0][i] == 1:
+			x1s = np.append(x1s, [data[1][i]], axis = 0)
+		else:
+			x0s = np.append(x0s, [data[1][i]], axis = 0)
+
+	plt.gcf().gca().add_artist(plt.Circle((0,0), np.sqrt(boundary), color='black',fill=False))
+	plt.scatter(x1s[:,1], x1s[:,0])
+	plt.scatter(x0s[:,1], x0s[:,0], color='red')
+	minmax = max(np.abs(min(x1s[:,1])),max(x1s[:,1]))
+	plt.axis([-minmax,minmax,-minmax,minmax])
+	plt.show()
 
 
+def main():
+	train = drawPoints(500)
+	test = drawPoints(2000)
+	kvals = np.array([1,3,5,7,9,13,17,21,25,33,41,49,57])
+	bayesPoints = drawPoints(10000)
+	
+	bayesError =  bayes(bayesPoints[1], bayesPoints[0])
+	#print bayesError
+	plotData(train)
+	plotData(test)
+	erroratesTest = getErrorates(test, train, kvals)
+	erroratesTrain = getErrorates(train, train, kvals)
 
-print"----"
-train = drawPoints(500)
-test = drawPoints(2000)
+	plt.plot(kvals,erroratesTest)
+	plt.plot(kvals,erroratesTrain)
+	plt.plot([0,max(kvals)], [bayesError, bayesError])
+	plt.show()
 
-plt.gcf().gca().add_artist(plt.Circle((0,0), 2.957, color='black',fill=False))
-plt.scatter(test[1][:,0],test[1][:,1], color='blue')
-plt.scatter(test[0][:,0],test[0][:,1], color='red')
-
-
-plt.axis([-30,30,-30,30])
-plt.show()
-
-kvals = np.array([1,3,5,7,9,13,17,21,25,33,41,49,57])
-testError = np.array([])
-trainError = np.array([])
-trainCombined = np.append(train[0], train[1], axis = 0)
-for k in kvals:
-	testError = np.append(testError, doKNN(k, test))
-	trainError = np.append(trainError, doKNN(k, train))
-
-
-plt.scatter(kvals, testError, color='red')
-plt.scatter(kvals, trainError,color='blue')
-plt.plot(kvals, testError, color='red')
-plt.plot(kvals, trainError,color='blue')
-plt.plot([0, k+1], [errorate,errorate])
-plt.axis([0, k+1, 0, max(np.max(testError), np.max(trainError))+0.1])
-
-plt.show()
-
-
+if __name__ == '__main__':
+    main()
